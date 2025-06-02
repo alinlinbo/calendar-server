@@ -1,14 +1,5 @@
-const express = require('express');
-const cors = require('cors');
 const PDFDocument = require('pdfkit');
 const puppeteer = require('puppeteer');
-
-const app = express();
-const PORT = 3000;
-
-// 中间件
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
 
 /**
  * 将 HTML 字符串渲染为图片Buffer
@@ -96,17 +87,12 @@ async function htmlToImageBuffer(htmlString, viewportWidth = 800, viewportHeight
   }
 }
 
-// 健康检查接口
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    message: 'Calendar PDF Server is running (HTML Template Mode)',
-    timestamp: new Date().toISOString()
-  });
-});
+module.exports = async (req, res) => {
+  // 只允许 POST 请求
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-// HTML模板生成PDF接口
-app.post('/api/generate-calendar-pdf-html', async (req, res) => {
   try {
     const { title, htmlTemplate, width = 1200, height = 1600 } = req.body;
     
@@ -167,22 +153,6 @@ app.post('/api/generate-calendar-pdf-html', async (req, res) => {
       
       console.log('- 图片已添加到PDF');
       
-      // 移除标题页，只保留日历图片
-      // doc.addPage();
-      // doc.fontSize(24)
-      //    .fillColor('#333333')
-      //    .text(title || `${year}年日历`, { align: 'center' });
-      // 
-      // doc.moveDown();
-      // doc.fontSize(12)
-      //    .fillColor('#666666')
-      //    .text(`生成时间: ${new Date().toLocaleString()}`, { align: 'center' });
-      // 
-      // doc.moveDown();
-      // doc.fontSize(10)
-      //    .fillColor('#999999')
-      //    .text(`图片尺寸: ${width}x${height}`, { align: 'center' });
-      
     } catch (renderError) {
       console.error('❌ HTML渲染失败:', renderError);
       
@@ -213,38 +183,4 @@ app.post('/api/generate-calendar-pdf-html', async (req, res) => {
       });
     }
   }
-});
-
-// 只在非 Vercel 环境下启动服务器
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`🚀 Calendar PDF Server 启动成功! (HTML模板模式)`);
-    console.log(`📍 服务地址: http://localhost:${PORT}`);
-    console.log(`🔍 健康检查: http://localhost:${PORT}/api/health`);
-    console.log('');
-    console.log('📋 可用接口:');
-    console.log('  GET  /api/health                           - 健康检查');
-    console.log('  POST /api/test-html-to-image               - HTML转图片测试');
-    console.log('  POST /api/generate-calendar-pdf-html       - HTML模板生成PDF (主要功能)');
-    console.log('');
-    console.log('💡 HTML模板模式使用说明:');
-    console.log('  - 前端发送包含12个月日历的HTML字符串');
-    console.log('  - 后端使用Puppeteer渲染HTML为一张大图片');
-    console.log('  - 自动生成PDF并返回');
-    console.log('  - 请求体格式: { title: "标题", htmlTemplate: "<html>...</html>", width: 1200, height: 1600 }');
-    console.log('');
-    console.log('🎯 主要接口: POST /api/generate-calendar-pdf-html');
-    console.log('   - title: PDF标题 (可选)');
-    console.log('   - htmlTemplate: 包含完整日历的HTML字符串 (必需)');
-    console.log('   - width: 图片宽度 (可选，默认1200)');
-    console.log('   - height: 图片高度 (可选，默认1600)');
-    console.log('');
-    console.log('📝 使用示例:');
-    console.log('   curl -X POST http://localhost:3000/api/generate-calendar-pdf-html \\');
-    console.log('        -H "Content-Type: application/json" \\');
-    console.log('        -d \'{"title":"2024年日历","htmlTemplate":"<html>...</html>"}\'');
-    console.log('');
-  });
-}
-
-module.exports = app; 
+}; 
